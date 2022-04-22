@@ -32,10 +32,8 @@ class Odom():
             y_k1 = y_k + (np.array([[w],[v*np.cos(y_k[0,0])],[v*np.sin(y_k[0,0])]]))*dt
         else:
             y_k1 = y_k
-        if (y_k1[0,0] < 0.0):
+        if (y_k1[0,0] < -1*np.pi):
             y_k1[0,0] = y_k1[0,0] + 2*np.pi
-        if (y_k1[0,0] >= 2*np.pi):
-            y_k1[0,0] = y_k1[0,0] - 2*np.pi
         if (y_k1[0,0] > np.pi):
             y_k1[0,0] = y_k1[0,0] - 2*np.pi
         self.pos = y_k1
