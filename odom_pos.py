@@ -34,7 +34,9 @@ class Odom():
             y_k1 = y_k
         if (y_k1[0,0] < 0.0):
             y_k1[0,0] = y_k1[0,0] + 2*np.pi
-        if (y_k1[0,0] > 2*np.pi):
+        if (y_k1[0,0] >= 2*np.pi):
+            y_k1[0,0] = y_k1[0,0] - 2*np.pi
+        if (y_k1[0,0] > np.pi):
             y_k1[0,0] = y_k1[0,0] - 2*np.pi
         self.pos = y_k1
         return y_k1
@@ -62,4 +64,4 @@ class Odom():
             t0 = tf
 if __name__ == "__main__":
     mov = Odom()
-    mov.main(1,1)
+    mov.main(-1,-1)

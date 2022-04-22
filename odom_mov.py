@@ -48,7 +48,7 @@ class Odom_mov():
             elif control_a < -0.1:
                 control_a = -0.1
             #-------
-            if ((e_r_d)) < 0.1:
+            if (e_r_d) < 0.1:
                 velocidad.linear.x = 0.0
                 velocidad.angular.z = 0.0
             else:
