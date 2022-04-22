@@ -35,7 +35,7 @@ class Odom():
         if (y_k1[0,0] < 0.0):
             y_k1[0,0] = y_k1[0,0] + 2*np.pi
         if (y_k1[0,0] > 2*np.pi):
-            y_k1[0,0] = 0.0
+            y_k1[0,0] = y_k1[0,0] - 2*np.pi
         self.pos = y_k1
         return y_k1
     def main(self,x,y):
