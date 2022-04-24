@@ -2,7 +2,6 @@
 
 #Leonardo Gracida Munoz A01379812
 #Nacy Lesly Gutierrez
-#cheems
 import cv2 #opencv
 import numpy as np
 #Seleccionamos la camara a usar conectada por usb
