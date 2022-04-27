@@ -21,9 +21,9 @@ class Imagen():
             #frame_rot = np.flip(self.frame,axis=0)
             #print(frame_rot)
             try:
-                gray = cv.cvtColor(cv.cvtColor(self.frame,cv.COLOR_BGR2GRAY),cv.COLOR_GRAY2BGR)
+                gray = cv.cvtColor(self.frame,cv.COLOR_BGR2GRAY)
                 gray_blur = cv.GaussianBlur(gray,(5,5),0)
-                smaller = cv.resize(gray_blur,(220,180),interpolation = cv.INTER_NEAREST)
+                smaller = cv.cvtColor(cv.resize(gray_blur,(220,180),interpolation = cv.INTER_NEAREST),cv.COLOR_GRAY2BGR)
                 img_back = self.bridge.cv2_to_imgmsg(smaller)
                 img_back.encoding = "bgr8"
                 #print(img_back.encoding)
