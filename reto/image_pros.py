@@ -8,12 +8,12 @@ class Imagen():
     def __init__(self):
         rospy.init_node("get_image")
         rospy.Subscriber("/video_source/raw",Image,self.img_callback)
-        self.pub = rospy.Publisher("/imagen_ejer1", Image, queue_size = 1)
+        self.pub = rospy.Publisher("/imagen_ejer1", Image, queue_size = 10)
         self.frame = np.array([[]],dtype = "uint8")
         self.bridge = CvBridge()
         self.rate = rospy.Rate(60)
     def img_callback(self,data):
-        frame =self.bridge.imgmsg_to_cv2(data,desired_encoding = "passthrough")
+        frame = self.bridge.imgmsg_to_cv2(data,desired_encoding = "passthrough")
         self.frame = frame
 
     def main(self):
