@@ -25,6 +25,8 @@ class Imagen():
                 gray_blur = cv.GaussianBlur(gray,(5,5),0)
                 smaller = cv.cvtColor(cv.resize(gray_blur,(220,180),interpolation = cv.INTER_NEAREST),cv.COLOR_GRAY2BGR)
                 img_back = self.bridge.cv2_to_imgmsg(smaller)
+
+                
                 img_back.encoding = "bgr8"
                 #print(img_back.encoding)
                 self.pub.publish(img_back)
