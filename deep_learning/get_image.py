@@ -8,22 +8,22 @@ class Imagen():
     def __init__(self):
         rospy.init_node("get_image")
         rospy.Subscriber("/video_source/raw",Image,self.img_callback)
-        self.imagen = np.array([[]],dtype = "uint8")
+        self.frame = np.array([[]],dtype = "uint8")
         self.bridge = CvBridge()
         self.rate = rospy.Rate(1)
+        self.path = "/home/elio987/Documents/imagenes_deep_learning/"
     def img_callback(self,data):
-        frame =self.bridge.imgmsg_to_cv2(data,"bgr8")
-        frame = np.array(frame,dtype=np.uint8)
-        self.imagen = frame
+        self.frame = self.bridge.imgmsg_to_cv2(data,desired_encoding = "passthrough")
         #self.imagen = cv_image
     def main(self):
         contador = 0
         while not rospy.is_shutdown():
-            print(self.imagen.shape)
-            if self.imagen.shape != (1,0):
-                cv.imwrite("/home/elio987/Downloads/"+str(contador)+".png",self.imagen)
+            try:
+                cv.imwrite(self.path+str(contador)+".png",self.frame)
                 #cv.destroyAllWindows()
                 contador += 1
+            except:
+                print("vacio")
             self.rate.sleep()
 if __name__ == "__main__":
     img = Imagen()
