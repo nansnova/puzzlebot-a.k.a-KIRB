@@ -4,12 +4,31 @@ import cv2 as cv #opencv
 import numpy as np
 #Seleccionamos la camara a usar conectada por usb
 vc = cv.VideoCapture(0);
+
+def nothing(x):
+    pass
+
+cv.namedWindow("controls")
+cv.createTrackbar("h_min", "controls", 0,255,nothing)
+cv.createTrackbar("h_max", "controls", 0,255,nothing)
+cv.createTrackbar("s_min", "controls", 0,255,nothing)
+cv.createTrackbar("s_max", "controls", 0,255,nothing)
+cv.createTrackbar("v_min", "controls", 0,255,nothing)
+cv.createTrackbar("v_max", "controls", 0,255,nothing)
+
 while True:
     next, frame = vc.read()
     frame = np.flip(frame, axis=1)
     img_hsv = cv.cvtColor(frame,cv.COLOR_BGR2HSV)
-    color_min=np.array([49,39,130])
-    color_max=np.array([98,255,255])
+    h_min = cv.getTrackbarPos("h_min","controls")
+    h_max = cv.getTrackbarPos("h_max","controls")
+    s_min = cv.getTrackbarPos("s_min","controls")
+    s_max = cv.getTrackbarPos("s_max","controls")
+    v_min = cv.getTrackbarPos("v_min","controls")
+    v_max = cv.getTrackbarPos("v_max","controls")
+
+    color_min=np.array([h_min,s_min,v_min])
+    color_max=np.array([h_max,s_max,v_max])
     mask=cv.inRange(img_hsv,color_min,color_max)
     frame[mask<255]=(0,0,0)
     #print(np.max(mask))
