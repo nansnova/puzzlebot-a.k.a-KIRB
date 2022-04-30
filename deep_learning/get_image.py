@@ -14,6 +14,7 @@ class Imagen():
         self.path = "/home/elio987/Documents/imagenes_deep_learning/"
     def img_callback(self,data):
         self.frame = self.bridge.imgmsg_to_cv2(data,desired_encoding = "passthrough")
+        
         #self.imagen = cv_image
     def main(self):
         contador = 0
