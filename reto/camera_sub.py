@@ -16,17 +16,20 @@ class Imagen():
         self.bridge = CvBridge()
         self.rate = rospy.Rate(60)
         self.h_g = 0
+        rospy.on_shutdown(self.end_callback)
 
     def img_callback(self,data):
         frame = self.bridge.imgmsg_to_cv2(data,desired_encoding = "passthrough")
         self.frame = frame
     def track_callback(self,data):
         self.h_g = data
-
+    def end_callback(self):
+        self.vel.linear.x = 0
+        self.pub_vel.publish(self.vel)
     def main(self):
         estado = "detenido"
         while not rospy.is_shutdown():
-            #frame_rot = np.flip(self.frame,axis=0)
+            frame = np.flip(self.frame,axis=0)
             #print(frame_rot)
             frame = self.frame
             frame_g = frame.copy()
@@ -36,12 +39,12 @@ class Imagen():
                 img_hsv = cv.cvtColor(frame,cv.COLOR_BGR2HSV)
                 cv.createTrackbar("green call H", "cal", 0,255,self.track_callback)
                 #print("h g: ",self.h_g)
-                color_min_g=np.array([49,39,112])
-                color_max_g=np.array([92,255,238])
-                color_min_r=np.array([0,111,159])
-                color_max_r=np.array([16,255,255])
-                color_min_y=np.array([21,67,155])
-                color_max_y=np.array([51,152,231])
+                color_min_r=np.array([134,61,99])
+                color_max_r=np.array([219,255,200])
+                color_min_g=np.array([48,36,89])
+                color_max_g=np.array([93,254,239])
+                color_min_y=np.array([21,28,137])
+                color_max_y=np.array([56,180,231])
                 mask_g=cv.inRange(img_hsv,color_min_g,color_max_g)
                 mask_r=cv.inRange(img_hsv,color_min_r,color_max_r)
                 mask_y=cv.inRange(img_hsv,color_min_y,color_max_y)
@@ -84,19 +87,22 @@ class Imagen():
                 #print(x4,y4,round(size4))
                 #cv.circle(frame_cir,(180,120),63,(255,0,0),-1)
                 #print("verde: ",size_g,", rojo: ",size_r,", amarillo: ",size_y)
-                if size_r > 0.0:
+                if size_r > 20.0:
                     estado = "detenido"
                     self.vel.linear.x = 0.0
                     cv.circle(frame,(int(x_r),int(y_r)),int(size_r/2),(0,0,255),2)
-                elif size_y > 0.0:
+                    cv.putText(frame, 'detenido', (int(10),int(50)), cv.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 1, cv.LINE_AA)
+                elif size_y > 20.0:
                     estado = "mitad vel"
                     self.vel.linear.x = 0.05
                     cv.circle(frame,(int(x_y),int(y_y)),int(size_y/2),(0,255,255),2)
-                elif size_g > 0.0:
+                    cv.putText(frame, 'mitad vel', (int(10),int(50)), cv.FONT_HERSHEY_SIMPLEX, 1, (0,255,255), 1, cv.LINE_AA)
+                elif size_g > 20.0:
                     estado = "avanza"
                     self.vel.linear.x = 0.1
                     cv.circle(frame,(int(x_g),int(y_g)),int(size_g/2),(0,255,0),2)
-                print("modo: ",estado)
+                    cv.putText(frame, 'avanza', (int(10),int(50)), cv.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 1, cv.LINE_AA)
+                #print("modo: ",estado)
                 self.pub_vel.publish(self.vel)
                 smaller =cv.resize(frame,(220,180),interpolation = cv.INTER_NEAREST)
                 img_back = self.bridge.cv2_to_imgmsg(smaller)
@@ -120,7 +126,7 @@ class Imagen():
 
         # Filter by Circularity
         params.filterByCircularity = True
-        params.minCircularity = 0.7
+        params.minCircularity = 0.8
 
         # Filter by Convexity
         params.filterByConvexity = False
