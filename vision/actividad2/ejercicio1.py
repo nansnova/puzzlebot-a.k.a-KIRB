@@ -82,13 +82,14 @@ for img in imagenes:
     #En esta zona hacemos lo mismo de antes pero con las iamgenes con ruido agregado
     path_ruido = os.path.join(dir_guar_ruido, str(count))
     os.mkdir(path_ruido)
-    cv.imwrite(os.path.join(path_ruido, "imagen_normal.png"), imagen)
 
     #Creamos el ruido
     noise = np.random.normal(mean,sigma,imagen.size)
     noise = noise.reshape(imagen.shape[0],imagen.shape[1],imagen.shape[2]).astype('uint8')
     #Agregamos el ruido
     img_noise = cv.add(imagen,noise)
+    #guardamos imagen con ruido
+    cv.imwrite(os.path.join(path_ruido, "imagen_normal.png"), img_noise)
     gray_noise = cv.cvtColor(img_noise,cv.COLOR_BGR2GRAY)
     sigma += 0.1
 
@@ -118,5 +119,6 @@ for img in imagenes:
     markers[unknown==255] = 0
     markers = cv.watershed(imagen,markers)
     markers.dtype = 'uint8'
+    markers = cv.resize(markers, (imagen.shape[1],imagen.shape[0]), interpolation = cv.INTER_NEAREST)
     cv.imwrite(os.path.join(path_ruido, "imagen_bin_mark.png"), markers)
     count += 1
