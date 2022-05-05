@@ -81,13 +81,16 @@ class Odom_mov():
                 #detener el robot en caso de que el error sea mayor a ese valor
                 velocidad.linear.x = 0.0
                 velocidad.angular.z = 0.0
+                #Si llegamos cerca de la meta madamos un True
                 flag = Bool()
                 flag.data = True
                 self.pub_flag.publish(flag)
             else:
                 #aplicar el movimiento con control en caso de que el error no pase el limite
+                #Multiplicamos el estado del semaforo por la velocidad del sistema de control
                 velocidad.linear.x = control_d*self.estado_sem
                 velocidad.angular.z = control_a*self.estado_sem
+                #Si todavia no estamos cerca de la meta madanmos un False
                 flag = Bool()
                 flag.data = False
                 self.pub_flag.publish(flag)

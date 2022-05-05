@@ -18,7 +18,6 @@ class Odom():
         rospy.Subscriber("/wr",Float32,self.wr_callback)
         rospy.Subscriber("/wl",Float32,self.wl_callback)
         rospy.Subscriber("/cur_succ",Bool,self.cur_succ_callback)
-        #rospy.Subscriber("/curPos",Pose2D,self.curPos_callback) #current pose
         #Publicamos la posicion en el espacio
         self.posicion = rospy.Publisher("/pos", Pose2D, queue_size=1)
         #Publicamos el error en angulo y distancia
@@ -26,7 +25,7 @@ class Odom():
         self.eth = rospy.Publisher("/eth", Float32, queue_size = 1)
         #Iniciamos el vector de posicion
         self.pos = np.array([[0.0],[0.0],[0.0]])
-        self.posiciones_ant = [(0,0),(1,0),(0,0)]
+        #Ciclo de posiciones en el espacio a ejecutar
         self.posiciones = [(0,0),(2,0),(2,2),(0,2)]
         self.curr_succ = False
         #Declaramos los mensajes por segundo
@@ -53,13 +52,15 @@ class Odom():
             y_k1 = y_k + (np.array([[w],[v*np.cos(y_k[0,0])+(w*dt)/2],[v*np.sin(y_k[0,0])+(w*dt)/2]]))*dt
         else:
             y_k1 = y_k
-
+        #En caso de querer tener un giro de 180 grados conforme al eje original
         if (x < 0.0) and (y == 0.0):
+            #Pasamos los angulos calculados de positivos de 0 a 360
             if (y_k1[0,0] < 0.0):
                 y_k1[0,0] = y_k1[0,0] + 2*np.pi
             if (y_k1[0,0] >= 2*np.pi):
                 y_k1[0,0] = 0.0
         else:
+            #En caso de estar muy ceca de 180 grados hacer el angulo directo a -180
             if y_k1[0,0] > np.radians(179.5):
                 y_k1[0,0] = -1*np.pi
             #reiniciar el angulo si pasa el rango de -pi a pi
@@ -74,36 +75,32 @@ class Odom():
         """Funcion que calcula el error de angulo y distancia y publica en los topicos"""
         #encontrar el tiempo inicial
         t0 = rospy.get_rostime().to_sec()
+        #index de la posicion deseada
         pos_index = 0
+        #Index limite de posiciones
         limite = len(self.posiciones)-1
         estado_call = False
-        estado_reset = False
-        potencia = 0.7
         while not rospy.is_shutdown():
+            #Si recibimos true cambiamos el index de la posicion deseada
             if self.curr_succ == True:
-                print(True)
+                #print(True)
+                #Hasta que no recivamos un False vamos a actualizar el index
                 if (pos_index <= limite) and (estado_call == False):
                     pos_index += 1
                     estado_call = True
+                #Si pasamos el limite reiniciamos todo
                 if (pos_index > limite):
                     pos_index = 0
-                """
-                if (pos_index > 1) and (estado_reset == False):
-                    self.pos = np.array([[0.1],[0.0],[0.0]])
-                    estado_reset = True"""
-
             else:
+                #Si recibimos un False podemos cambiar de posicion deseada.
                 estado_call = False
-                estado_reset = False
-            print(self.pos)
-            print("index",pos_index)
-            #print(self.curr_succ)
             pos_index_sig = pos_index+1
+            #Si la index actual es la ultima la index siguiente es la primera
             if (pos_index+1) == limite + 1:
                 pos_index_sig = 0
+            #Obtenemos posicion sigueinte y actual
             x_1,y_1 = self.posiciones[pos_index_sig]
             x,y = self.posiciones[pos_index]
-            print(x,x_1,y,y_1)
             #Pose2D es un mensaje que toma x,y,z
             #Iniciamos los mensajes a usar
             pos = Pose2D()
@@ -111,12 +108,8 @@ class Odom():
             #Calculamos el error de angulo
             ed = Float32()
             eth.data = np.arctan2(y_1 - y,x_1 - x)-self.pos[0,0]
-            print(eth.data)
             #Calculamos el error de distancia
             ed.data = np.sqrt((x_1-self.pos[1,0])**2 + (y_1 - self.pos[2,0])**2)
-            print("ed ", ed.data)
-            #print("error x ", x,self.pos[1,0])
-            #print("error y ", y,self.pos[2,0])
 
             #Ingresamoa la pisicion en x y theta
             pos.x = self.pos[1,0]
