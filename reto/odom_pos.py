@@ -3,7 +3,7 @@
 #Importamos las librerias de rospy numpy y los tipos de mensajes necesarios
 import rospy
 import numpy as np
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32,Bool
 from geometry_msgs.msg import Pose2D
 
 class Odom():
@@ -17,21 +17,28 @@ class Odom():
         #Creamos los Subscribers y Publisher necesarios
         rospy.Subscriber("/wr",Float32,self.wr_callback)
         rospy.Subscriber("/wl",Float32,self.wl_callback)
+        rospy.Subscriber("/cur_succ",Bool,self.cur_succ_callback)
+        #rospy.Subscriber("/curPos",Pose2D,self.curPos_callback) #current pose
         #Publicamos la posicion en el espacio
-        self.posicion= rospy.Publisher("/pos", Pose2D, queue_size=1)
+        self.posicion = rospy.Publisher("/pos", Pose2D, queue_size=1)
         #Publicamos el error en angulo y distancia
         self.ed = rospy.Publisher("/ed", Float32, queue_size = 1)
         self.eth = rospy.Publisher("/eth", Float32, queue_size = 1)
         #Iniciamos el vector de posicion
         self.pos = np.array([[0.0],[0.0],[0.0]])
+        self.posiciones_ant = [(0,0),(1,0),(0,0)]
+        self.posiciones = [(1,0),(1,1),(0,1)]
+        self.curr_succ = False
         #Declaramos los mensajes por segundo
-        self.rate = rospy.Rate(2000)
+        self.rate = rospy.Rate(200)
 
     #funciones callback para extraer los datos de los subscriber
     def wr_callback(self,w):
         self.wr = w.data
     def wl_callback(self,w):
         self.wl = w.data
+    def cur_succ_callback(self,data):
+        self.curr_succ = data.data
 
     #calculo de la odometria estimada
     def cal_odom(self,dt):
@@ -54,20 +61,48 @@ class Odom():
         #Actualizamos el vector de posicion
         self.pos = y_k1
 
-    def main(self,x,y):
+    def main(self):
         """Funcion que calcula el error de angulo y distancia y publica en los topicos"""
         #encontrar el tiempo inicial
         t0 = rospy.get_rostime().to_sec()
+        pos_index = 0
+        limite = len(self.posiciones)-1
+        estado_call = False
+        estado_reset = False
+        potencia = 1
         while not rospy.is_shutdown():
+            if self.curr_succ == True:
+                print(True)
+                if (pos_index <= 1) and (estado_call == False):
+                    pos_index += 1
+                    estado_call = True
+                if (pos_index > 1) and (estado_reset == False):
+                    self.pos = np.array([[0.1],[0.0],[0.0]])
+                    estado_reset = True
+
+            else:
+                estado_call = False
+                estado_reset = False
+            print(self.pos)
+            print("index",pos_index)
+            #print(self.curr_succ)
+            x_1,y_1 = self.posiciones[pos_index]
+            x,y = self.posiciones_ant[pos_index]
+            print(x,x_1,y,y_1)
+            print(np.arctan2(y_1 - y,x_1 - x))
             #Pose2D es un mensaje que toma x,y,z
             #Iniciamos los mensajes a usar
             pos = Pose2D()
             eth = Float32()
             #Calculamos el error de angulo
             ed = Float32()
-            eth.data = np.arctan2(y,x)-self.pos[0,0]
+            eth.data = np.arctan2(y_1 - y,x_1 - x)-self.pos[0,0]
             #Calculamos el error de distancia
-            ed.data = ((x-self.pos[1,0])**2 + (y - self.pos[2,0])**2)**0.5
+            ed.data = np.sqrt((x_1-self.pos[1,0])**2 + (y_1 - self.pos[2,0])**2)
+            print("ed ", ed.data)
+            #print("error x ", x,self.pos[1,0])
+            #print("error y ", y,self.pos[2,0])
+
             #Ingresamoa la pisicion en x y theta
             pos.x = self.pos[1,0]
             pos.y = self.pos[2,0]
@@ -89,4 +124,5 @@ if __name__ == "__main__":
     mov = Odom()
     #Ingresamos el punto al que queremos ir en el espacio
     # X Y
-    mov.main(-1,-1)
+    #mov.main(1,1)
+    mov.main()

@@ -4,7 +4,7 @@
 import rospy
 import numpy as np
 #Importamos los mensajes de ROS necesarios
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32,Bool
 from geometry_msgs.msg import Pose2D,Twist
 
 class Odom_mov():
@@ -20,6 +20,7 @@ class Odom_mov():
         rospy.Subscriber("/eth",Float32,self.eth_callback)
         #Creamos el publisher para poder mover el puzzlebot
         self.pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 1)
+        self.pub_flag = rospy.Publisher("/cur_succ",Bool, queue_size=1)
         #Declaramos los mensajes por segundo
         self.rate = rospy.Rate(100)
         #Iniciamos un mensaje tipo Twist
@@ -53,7 +54,8 @@ class Odom_mov():
             kp = 1
             #aplicacion de control proporcional a la distancia
             control_d = e_r_d * kp
-            lim_vel = 0.1
+            lim_vel = 0.05
+            lim_vel_ang = 0.2
             #establecimiento de filtro que limita la velocidad
             if control_d > lim_vel:
                 control_d = lim_vel
@@ -64,21 +66,27 @@ class Odom_mov():
             e_r_a = self.eth
             #aplicacion de control proporcional al angulo
             control_a = e_r_a * kp
-            if control_a > lim_vel:
-                control_a = lim_vel
-            elif control_a < -1*lim_vel:
-                control_a = -1*lim_vel
+            if control_a > lim_vel_ang:
+                control_a = lim_vel_ang
+            elif control_a < -1*lim_vel_ang:
+                control_a = -1*lim_vel_ang
             #-------
             """Declaramos la distancia minima entre el punto real y el del puzzlebot para declarar que llegamos al punto deseado,
             entre mas vuelta haga el puzzlebot el error entre estos puntos sera mayor."""
-            if (e_r_d) < 0.36:
+            if (e_r_d) < 0.05:
                 #detener el robot en caso de que el error sea mayor a ese valor
                 velocidad.linear.x = 0.0
                 velocidad.angular.z = 0.0
+                flag = Bool()
+                flag.data = True
+                self.pub_flag.publish(flag)
             else:
                 #aplicar el movimiento con control en caso de que el error no pase el limite
                 velocidad.linear.x = control_d
                 velocidad.angular.z = control_a
+                flag = Bool()
+                flag.data = False
+                self.pub_flag.publish(flag)
             #Publicamos la velocidad
             self.pub.publish(velocidad)
             #Declaramos el sleep para asegurar los mensaje por segundo.
