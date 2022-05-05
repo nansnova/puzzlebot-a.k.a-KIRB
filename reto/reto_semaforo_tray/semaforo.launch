@@ -1,0 +1,5 @@
+<launch>
+  <node name="camera_sub" pkg="solution" type="camera_sub.py"/>
+  <node name="odom_pos" pkg="solution" type="odom_pos.py"/>
+  <node name="odom_mov" pkg="solution" type="odom_mov.py"/>
+</launch>
