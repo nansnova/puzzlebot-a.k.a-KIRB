@@ -16,7 +16,6 @@ class Odom_mov():
         self.eth = 0
         self.estado_sem = 0
         #Creamos los subscribers
-        rospy.Subscriber("/pos",Pose2D,self.pos_callback)
         rospy.Subscriber("/ed",Float32,self.ed_callback)
         rospy.Subscriber("/eth",Float32,self.eth_callback)
         rospy.Subscriber("/estado_sem",Float32,self.sem_callback)
@@ -30,8 +29,6 @@ class Odom_mov():
         #Cuando se acabe el codigo o lo tiremos llamemos esa funcion
         rospy.on_shutdown(self.end_callback)
     #funciones callback para extraer los datos de los suscriptores
-    def pos_callback(self,data):
-        self.posicion = [data.theta,data.x,data.y]
     def ed_callback(self,data):
         self.ed = data.data
     def eth_callback(self,data):
