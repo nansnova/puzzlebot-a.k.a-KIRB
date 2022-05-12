@@ -1,0 +1,4 @@
+<launch>
+  <node name="get_black_line" pkg="line_follower" type="get_black_line.py"/>
+  <node name="seguidor_mov" pkg="line_follower" type="seguidor_mov.py"/>
+</launch>
