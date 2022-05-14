@@ -1,3 +1,5 @@
+#Leonardo Gracida Munoz A01379812
+#Nancy Lesly Garcia Jimenez A01378043
 from tkinter import *
 from PIL import Image, ImageTk
 
