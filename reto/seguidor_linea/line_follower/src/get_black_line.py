@@ -1,27 +1,37 @@
 #!/usr/bin/env python
-
+#Autores: Leonardo Gracida Munoz A0137, Nancy L.Garcia Jimenez A01378043
+#Importamos las librerias de rospy, numpy y cv2
 import rospy
 import cv2 as cv
 import numpy as np
+#Importamos los mensjes necesarios
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32
+#Importamos el Bridge de cv2
 from cv_bridge import CvBridge
 
 class getBlackLine():
     def __init__(self):
+        #Iniciamos el nodo
         rospy.init_node("get_black_line")
+        #Creamos los subscribers necesarios
         rospy.Subscriber("/video_source/raw",Image,self.img_callback)
         rospy.Subscriber("/wr",Float32,self.wr_callback)
         rospy.Subscriber("/wl",Float32,self.wl_callback)
+        #Creamos los Publishers
         self.pub = rospy.Publisher("/img_line_res", Image, queue_size = 10)
         self.pub_con_giro = rospy.Publisher("/con_giro", Float32, queue_size = 1)
         self.pub_error = rospy.Publisher("/err_line", Float32, queue_size = 10)
-        self.pub_tiempo = rospy.Publisher("/tiempo", Float32, queue_size = 10)
+        #Variables usadas para obtener los datos de los subscribers
         self.frame = np.array([[]],dtype = "uint8")
         self.wr = 0
         self.wl = 0
+        #Creamos el bridge de cv2 a ROS smg y viceversa
         self.bridge = CvBridge()
+        #Mensajes por segundo
         self.rate = rospy.Rate(60)
+
+    #Callbacks para obetener la informacion de los topicos
     def img_callback(self,data):
         self.frame = self.bridge.imgmsg_to_cv2(data,desired_encoding = "passthrough")
     def wr_callback(self,data):
@@ -92,40 +102,39 @@ class getBlackLine():
         return (inPoints,outPoints,targetWidth,targetHeight)
 
     def main(self):
-        contador = 0
+        #Variables que necesitamos guardar
         estado = False
+        #Puntos guardados de la imagen restificada
         inPoints,outPoints,tw,th = 0,0,0,0
+        #Punto inicial al que alinearnos
         punto_0 = (0,0)
+        #Variables booleanas para hacer el diferente control, deteccion de doble linea o giro muy cerrado.
         estado_giro = False
-	estado_giro_der = False
-	estado_giro_der_doble = False
-	estado_giro_iz = False
-	estado_giro_iz_doble = False
+        estado_giro_fuerte = False
         while not rospy.is_shutdown():
             try:
-                # To HSV:
-                hsv = cv.cvtColor(self.frame, cv.COLOR_BGR2HSV)
-		gray = cv.cvtColor(self.frame, cv.COLOR_BGR2GRAY)
-                (H, S, V) = cv.split(hsv)
-                filteredImage = cv.GaussianBlur(V, (5,5), 0)
+                #Pasamos el frame a escalas de grises
+                gray = cv.cvtColor(self.frame, cv.COLOR_BGR2GRAY)
                 _, binaryImage = cv.threshold(gray, 75, 255, cv.THRESH_BINARY)
-		kernel = np.ones((5,5),np.uint8)
-    	        #Erosion of an Image
+                #Kernel para hacer operaciones morfologicas
+                kernel = np.ones((5,5),np.uint8)
+    	        #erosionamos la imagen para eliminar ruido
     	        binaryImage = cv.erode(binaryImage,kernel,iterations = 3)
-    	    	#Dilation of an Image
-    	    	#binaryImage = cv.dilate(binaryImage,kernel,iterations = 1)
-		#print(binaryImage.shape)
-		#print(binaryImage.shape)
+                #Cortamos la imagen a la mitad o mas de li mitad para no ver cosas inecesarias
                 binaryImage = binaryImage[190:,:]
+                #Obtenemos los puntos de la imagen rectificada una vez
                 if estado == False:
                     inPoints,outPoints,tw,th = self.rec_img_cal(binaryImage)
                     estado = True
+                #Cambiamos la perspectiva de la imagen para obtener en una imagen plana el camino. usando los puntos obtenidos
                 H = cv.getPerspectiveTransform(inPoints, outPoints)
+                #Cambiamos la perspectiva
                 rectifiedImage = cv.warpPerspective(~binaryImage, H, (tw, th))
                 rectifiedImage = np.flip(rectifiedImage.T,axis = 0)
+                #Obtenemos el complementos
                 rectifiedImage_com = ~rectifiedImage
+                #Obtenemos los contornos
                 contours, _ = cv.findContours(rectifiedImage,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
-                #print(rectifiedImage.shape)
                 x,y,w,h = cv.boundingRect(max(contours))
                 punto_f = (int(x + w/2),int(y + h/2))
                 if punto_0 == (0,0):
@@ -135,51 +144,13 @@ class getBlackLine():
                 lim_izq = 0
                 lim_der = rectifiedImage.shape[1]
                 dis_ec = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-		dis_ec_x = np.sqrt((x2-x1)**2)
-		dis_ec_y = np.sqrt((y2-y1)**2)
-		dis_lim_der = np.sqrt((x2-lim_der)**2)
-		dis_lim_izq = np.sqrt((x2-lim_izq)**2)
-		#print("punto 0",punto_0)
-		#print("punto f",punto_f)
-                #print(dis_ec_x)
-		"""
-                if (dis_ec >= 300) and (estado_giro_der == False):
+                dis_ec_x = np.sqrt((x2-x1)**2)
+                dis_ec_y = np.sqrt((y2-y1)**2)
+                dis_lim_der = np.sqrt((x2-lim_der)**2)
+                dis_lim_izq = np.sqrt((x2-lim_izq)**2)
+                if (dis_ec >= 300) and (estado_giro_fuerte == False):
                     estado_giro = True
                 elif estado_giro == True:
-		    #print("der",estado_giro)
-                    giro = Float32()
-                    giro.data = 0
-                    self.pub_con_giro.publish(giro)
-                    x,y = punto_0
-                    punto_x = x
-                    punto_y = y
-                    if dis_ec_x < 30:
-			print("derecho")
-                        giro.data = 1
-                        self.pub_con_giro.publish(giro)
-                        estado_giro = False
-                elif  estado_giro == False:
-                    giro = Float32()
-                    giro.data = 1
-                    self.pub_con_giro.publish(giro)
-                    x,y = punto_f
-                    punto_x = x
-                    punto_y = y
-                    punto_0 = punto_f"""
-                #Giro derecha 90
-		#dis_lim = [dis_lim_der,dis_lim_iz]
-		"""
-		if max(dis_lim) == dis_lim_der:
-			lim = lim_der
-		elif max(dis_lim) == dis_lim_iz:
-			lim = lim_iz"""
-		#print(max(dis_lim))
-
-
-		if (dis_ec >= 300) and (estado_giro_der == False):
-                    estado_giro = True
-                elif estado_giro == True:
-		    #print("der",estado_giro)
                     giro = Float32()
                     giro.data = 0
                     self.pub_con_giro.publish(giro)
@@ -187,89 +158,48 @@ class getBlackLine():
                     punto_x = x
                     punto_y = y
                     if dis_ec_x < 10:
-			print("derecho")
                         giro.data = 1
                         self.pub_con_giro.publish(giro)
                         estado_giro = False
-
-
-		dis_lim = [dis_lim_izq,dis_lim_der]
-		if min(dis_lim) == dis_lim_der:
-			lim = lim_der
-		elif min(dis_lim) == dis_lim_izq:
-			lim = lim_izq
+                dis_lim = [dis_lim_izq,dis_lim_der]
+                if min(dis_lim) == dis_lim_der:
+                    lim = lim_der
+                elif min(dis_lim) == dis_lim_izq:
+                    lim = lim_izq
                 if (min(dis_lim) <= 190) and (estado_giro == False):
-		    #print("doble",estado_giro_der)
-                    estado_giro_der = True
-                if estado_giro_der == True:
-		    giro = Float32()
-		    giro.data = 0
-		    self.pub_con_giro.publish(giro)
-		    punto_x = lim
-		    punto_y = 0
+                    estado_giro_fuerte = True
+                if estado_giro_fuerte == True:
+                    giro = Float32()
+                    giro.data = 0
+                    self.pub_con_giro.publish(giro)
+                    punto_x = lim
+                    punto_y = 0
 
-		    if (dis_ec >= 300):
-	                #estado_giro_der_doble = True
-			giro = Float32()
-			giro.data = 0
-			self.pub_con_giro.publish(giro)
-			estado_giro_der = False
-			estado_giro = True
-			x,y = punto_0
+                    if (dis_ec >= 300):
+                        giro = Float32()
+                        giro.data = 0
+                        self.pub_con_giro.publish(giro)
+                        estado_giro_fuerte = False
+                        estado_giro = True
+                        x,y = punto_0
                         punto_x = x
                         punto_y = y
 
-                    if (min(dis_lim) > 80) and (estado_giro_der == True):
-                        print(dis_lim,min(dis_lim))
+                    if (min(dis_lim) > 80) and (estado_giro_fuerte == True):
                         giro.data = 1
                         self.pub_con_giro.publish(giro)
-                        estado_giro_der = False
-                if (estado_giro == False)and(estado_giro_der == False):
+                        estado_giro_fuerte = False
+                if (estado_giro == False)and(estado_giro_fuerte == False):
                     giro = Float32()
                     giro.data = 1
                     self.pub_con_giro.publish(giro)
-		    x,y = punto_f
+                    x,y = punto_f
                     punto_x = x
                     punto_y = y
                     punto_0 = punto_f
-		#Giro izquierda
-		"""
-		if (dis_lim_iz <= 180):
-		    print("doble iz",estado_giro_iz)
-                    #estado_giro_iz = True
-                if estado_giro_iz == True:
-		    giro = Float32()
-		    giro.data = 0
-		    self.pub_con_giro.publish(giro)
-		    punto_x = lim_iz
-		    punto_y = 0
-
-		    if (dis_ec >= 300):
-	                estado_giro_iz_doble = True
-	            if estado_giro_iz_doble == True:
-		        #print("der",estado_giro)
-	                x,y = punto_0
-	                punto_x = x
-	                punto_y = y
-	            if dis_ec_x < 30:
-			print("derecho")
-	                estado_giro = False
-
-                    if dis_lim_iz > 85:
-                        #print("derecho")
-                        giro.data = 1
-                        self.pub_con_giro.publish(giro)
-                        estado_giro_iz = False
-                else:
-                    giro = Float32()
-                    giro.data = 1
-                    self.pub_con_giro.publish(giro)
-		    x,y = punto_f
-                    punto_x = x
-                    punto_y = y"""
                 #Pintar
                 img_back = cv.cvtColor(rectifiedImage_com, cv.COLOR_GRAY2BGR)
-                cv.rectangle(img_back,(x,y),(x+w,y+h),(0,255,0),2)
+                cv.rectangle(img_back,(x-w,y-h),(x,y),(0,255,0),2)
                 punto_x_des = int(rectifiedImage.shape[1]/2)
                 error = punto_x_des - punto_x
                 error_msg = Float32()
@@ -288,7 +218,6 @@ class getBlackLine():
                 self.pub.publish(img_back)
             except:
                 print("vacio")
-		hola = 1
             self.rate.sleep()
 if __name__ == "__main__":
     img = getBlackLine()
