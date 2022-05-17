@@ -40,7 +40,7 @@ class SeguidorMov():
         while not rospy.is_shutdown():
             #Declaramos la ganancia proporcional
             kp = 0.003
-            lim_vel_ang = 0.35
+            lim_vel_ang = 0.3
             #Error de angulo
             err_line = self.err_line
             #aplicacion de control proporcional al angulo
@@ -57,7 +57,7 @@ class SeguidorMov():
                 boost = 1
             self.robot_cmd.angular.z = proporcional
             #Aplicamos la variables de control de velocidad lineal y el aumento de velocidad
-            self.robot_cmd.linear.x = 0.125 * self.con_giro * boost
+            self.robot_cmd.linear.x = 0.2 * self.con_giro * boost
             #Publicamos la velocidad
             self.pub.publish(self.robot_cmd)
             #Declaramos el sleep para asegurar los mensaje por segundo.

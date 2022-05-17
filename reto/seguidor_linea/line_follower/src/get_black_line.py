@@ -165,17 +165,17 @@ class getBlackLine():
                         self.pub_con_giro.publish(giro)
                         estado_giro = False
                 """En caso de que haya una curva muy cerrada, lo que hacemos es obetener la distancia menor del punto a girar
-                respeto al limite derecho o izquierdo, al tener esa distancia minima, si es menor a 190 y no estamos detectadno otra linea,
+                respeto al limite derecho o izquierdo, al tener esa distancia minima, si es menor a 80 y no estamos detectadno otra linea,
                 vamos a parar y declara el giro hasta el limite de la imagen y vamos a parar hasta que la distancia entre el nuevo
-                punto detectado y el limite sea mayor a 80"""
+                punto detectado y el limite sea mayor a 20"""
                 #Obtenemos la distancia minima hacia el limite izquierdo o derecho
                 dis_lim = [dis_lim_izq,dis_lim_der]
                 if min(dis_lim) == dis_lim_der:
                     lim = lim_der
                 elif min(dis_lim) == dis_lim_izq:
                     lim = lim_izq
-                #Si la distancia es menor a 190
-                if (min(dis_lim) <= 190) and (estado_giro == False):
+                #Si la distancia es menor a 80
+                if (min(dis_lim) <= 80) and (estado_giro == False):
                     estado_giro_fuerte = True
                 if estado_giro_fuerte == True:
                     #Paramos la velocidad lineal
@@ -199,8 +199,8 @@ class getBlackLine():
                         x,y = punto_0
                         punto_x = x
                         punto_y = y
-                    #En caso de ya tener una distancia mayor a 80 avanzamos otra vez hacia delante.
-                    if (min(dis_lim) > 80) and (estado_giro_fuerte == True):
+                    #En caso de ya tener una distancia mayor a 20 avanzamos otra vez hacia delante.
+                    if (min(dis_lim) > 20) and (estado_giro_fuerte == True):
                         giro.data = 1
                         self.pub_con_giro.publish(giro)
                         estado_giro_fuerte = False
@@ -217,7 +217,7 @@ class getBlackLine():
                 #Al ya tener todos estos datos lo que hacemos es agregar componentes a la imagen final
                 img_back = cv.cvtColor(rectifiedImage_com, cv.COLOR_GRAY2BGR)
                 #Insetamos el bounding rectangle obtenido
-                cv.rectangle(img_back,(xr,yr),(xr+wr,yr+hr),(0,255,0),2)
+                #cv.rectangle(img_back,(xr,yr),(xr+wr,yr+hr),(0,255,0),2)
                 #Declaramos el punto medio en x de la imagen como el punto a ir o girar para alinearse con la imagen
                 punto_x_des = int(rectifiedImage.shape[1]/2)
                 #Restamos con el punto obtenido en x del bounding rectangle para obtener el error
