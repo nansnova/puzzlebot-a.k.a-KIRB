@@ -39,42 +39,31 @@ class getBlackLine():
     def wl_callback(self,data):
         self.wl = data.data
     def rec_img_cal(self,binaryImage):
+        """Funcion que obtiene los puntos necesarios a usar para cambiar la perspectiva de una imagen y obtener
+        la imagen de la linea a seguir de forma plana"""
+        #Obtenemos el complemento de la imagen binarizada
         binaryImage = ~binaryImage
-        # Get contours:
+        #Obtenemos los contornos
         contours, _ = cv.findContours(binaryImage, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-        # Loop through contours:
+        #Matriz de los inPoints de las coordenadas de los cuato puntos del cacho de imagen que queremos cambiar la perspectiva
         inPoints = np.zeros((4, 2), dtype="float32")
+        #Iteramos en todos los contronos detectados
         for c in contours:
-
-            # Approximate the contour to a polygon:
+            #Aproximamos un poligiono de los contornos obtenidos
             perimeter = cv.arcLength(c, True)
-
-            # Approximation accuracy:
+            #Aproximacion de exactitud
             approxAccuracy = 0.05 * perimeter
-
-            # Get vertices. Last flag indicates a closed curve:
+            #Obtenemos los vertices del poligino aproximado
             vertices = cv.approxPolyDP(c, approxAccuracy, True)
-
-            # Print the polygon's vertices:
+            #Cuantos vertices tiene
             verticesFound = len(vertices)
-            #print("Polygon Vertices: " + str(verticesFound))
-
-            # Prepare inPoints structure:
-
-            # We have the four vertices that made up the
-            # contour approximation:
+            #Si los vertices son cuatro significa que detectamso la linea
             if verticesFound == 4:
-
-                # Print the vertex structure:
-                #print(vertices)
-
-                # Format points:
                 contador = 1
                 for p in range(len(vertices)):
-                    # Get corner points:
+                    #Obtenemos los puntos de las esquinas
                     currentPoint = vertices[p][0]
-
-                    # Store in inPoints array:
+                    #En cada esquina la movemos un poco alejada del camino para tener mas vision
                     if (contador == 1):
                         limite = -250
                     elif (contador == 4):
@@ -84,20 +73,18 @@ class getBlackLine():
                     elif (contador == 3):
                         limite = 260
                     contador += 1
+                    #Obtenemos las coordenadas a usar para extraer de la imagen original el camino
                     inPoints[p][0] = currentPoint[0] + limite
                     inPoints[p][1] = currentPoint[1]
-
-                    # Get x, y:
-                    x = int(currentPoint[0] + limite)
-                    y = int(currentPoint[1])
+        #Declaramos el tamano de la imagen final resutlante del cambio de perspectiva
         targetWidth = 440
         targetHeight = targetWidth
-        # Target Points:
+        #Declaramos los outPoints para poder cambiar la perspectiva de la imagen
         outPoints = np.array([
-            [targetWidth, 0],  # 1
-            [0, 0],  # 2
-            [0, targetHeight],  # 3
-            [targetWidth, targetHeight]],  # 4
+            [targetWidth, 0],
+            [0, 0],
+            [0, targetHeight],
+            [targetWidth, targetHeight]],
             dtype="float32")
         return (inPoints,outPoints,targetWidth,targetHeight)
 
@@ -131,64 +118,94 @@ class getBlackLine():
                 #Cambiamos la perspectiva
                 rectifiedImage = cv.warpPerspective(~binaryImage, H, (tw, th))
                 rectifiedImage = np.flip(rectifiedImage.T,axis = 0)
-                #Obtenemos el complementos
+                #Obtenemos el complemento de la imagen rectificada binarizada
                 rectifiedImage_com = ~rectifiedImage
-                #Obtenemos los contornos
+                #Obtenemos los contornos de todo los detectado en la imagen
                 contours, _ = cv.findContours(rectifiedImage,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
+                #Obtenemos el rectagulo que encierre a la forma con contorno mas grande
+                #En este caso el de la linea
                 x,y,w,h = cv.boundingRect(max(contours))
+                xr,yr,wr,hr = x,y,w,h
+                #Guardamos las coordenadas del centro del rectagulo obtenido
                 punto_f = (int(x + w/2),int(y + h/2))
+                #En la primera iteracion el punto final e inicial son iguales
                 if punto_0 == (0,0):
                     punto_0 = punto_f
                 x1,y1 = punto_0
                 x2,y2 = punto_f
+                #Declaramos lo limites de la izquierda y derecha de la imagen rectificada
                 lim_izq = 0
                 lim_der = rectifiedImage.shape[1]
+                #Obtenemos la distancia euclidianada entre el nuevo punto y el punto anterior
                 dis_ec = np.sqrt((x2-x1)**2 + (y2-y1)**2)
                 dis_ec_x = np.sqrt((x2-x1)**2)
                 dis_ec_y = np.sqrt((y2-y1)**2)
+                #Obtenemos las distancia euclidianadas entre el punto obtenido actual y los limites de izquierda y derecha
                 dis_lim_der = np.sqrt((x2-lim_der)**2)
                 dis_lim_izq = np.sqrt((x2-lim_izq)**2)
+                """Para poder detectar dos lineas y e ir a la mas cercana lo que hicimos fue obtener la distancia euclidiana entre el
+                punto anterior y el punto actual con el bounding rectangle, en caso de que haya una distancia
+                euclidiana mayor a 300 y no estemos en un giro muy cerrado, guardamos el punto anterior que es el de la linea
+                mas cercana, nos paramos en velocidad lineal y giramos hacia el punto anterior, hasta que el punto de la linea detectada
+                mas grande tenga una diatancia euclidiana menor a 10."""
                 if (dis_ec >= 300) and (estado_giro_fuerte == False):
                     estado_giro = True
                 elif estado_giro == True:
+                    #Nos paramos
                     giro = Float32()
                     giro.data = 0
                     self.pub_con_giro.publish(giro)
+                    #Declaramos que los puntos a girar son los de la linea anterior
                     x,y = punto_0
                     punto_x = x
                     punto_y = y
+                    #Si la distancia euclidiana es menor del nuevo punto detectado es menor a 10 podemos seguir avanzando
                     if dis_ec_x < 10:
                         giro.data = 1
                         self.pub_con_giro.publish(giro)
                         estado_giro = False
+                """En caso de que haya una curva muy cerrada, lo que hacemos es obetener la distancia menor del punto a girar
+                respeto al limite derecho o izquierdo, al tener esa distancia minima, si es menor a 190 y no estamos detectadno otra linea,
+                vamos a parar y declara el giro hasta el limite de la imagen y vamos a parar hasta que la distancia entre el nuevo
+                punto detectado y el limite sea mayor a 80"""
+                #Obtenemos la distancia minima hacia el limite izquierdo o derecho
                 dis_lim = [dis_lim_izq,dis_lim_der]
                 if min(dis_lim) == dis_lim_der:
                     lim = lim_der
                 elif min(dis_lim) == dis_lim_izq:
                     lim = lim_izq
+                #Si la distancia es menor a 190
                 if (min(dis_lim) <= 190) and (estado_giro == False):
                     estado_giro_fuerte = True
                 if estado_giro_fuerte == True:
+                    #Paramos la velocidad lineal
                     giro = Float32()
                     giro.data = 0
                     self.pub_con_giro.publish(giro)
+                    #Declaramos ir hacia el limite izquierdo o derecho,
+                    #Dependiendo de la distancia minima obtenida
                     punto_x = lim
                     punto_y = 0
-
+                    #En caso de estar girando y detectar otra linea, lo que vamos a hacer es salir del control de giro cerrado
+                    #Y vamos a entrar el control de giro con dos lineas detectadas
                     if (dis_ec >= 300):
+                        #Paramos al robot en velocidad lineal
                         giro = Float32()
                         giro.data = 0
                         self.pub_con_giro.publish(giro)
+                        #Salimos de esta condicional y entramos a la anterior
                         estado_giro_fuerte = False
                         estado_giro = True
                         x,y = punto_0
                         punto_x = x
                         punto_y = y
-
+                    #En caso de ya tener una distancia mayor a 80 avanzamos otra vez hacia delante.
                     if (min(dis_lim) > 80) and (estado_giro_fuerte == True):
                         giro.data = 1
                         self.pub_con_giro.publish(giro)
                         estado_giro_fuerte = False
+                #En caso de ir derecho o en curvas no cerradas actualizamos los puntos normalmente
+                #Y vamos hacia delante
                 if (estado_giro == False)and(estado_giro_fuerte == False):
                     giro = Float32()
                     giro.data = 1
@@ -197,27 +214,32 @@ class getBlackLine():
                     punto_x = x
                     punto_y = y
                     punto_0 = punto_f
-                #Pintar
+                #Al ya tener todos estos datos lo que hacemos es agregar componentes a la imagen final
                 img_back = cv.cvtColor(rectifiedImage_com, cv.COLOR_GRAY2BGR)
-                cv.rectangle(img_back,(x-w,y-h),(x,y),(0,255,0),2)
+                #Insetamos el bounding rectangle obtenido
+                cv.rectangle(img_back,(xr,yr),(xr+wr,yr+hr),(0,255,0),2)
+                #Declaramos el punto medio en x de la imagen como el punto a ir o girar para alinearse con la imagen
                 punto_x_des = int(rectifiedImage.shape[1]/2)
+                #Restamos con el punto obtenido en x del bounding rectangle para obtener el error
                 error = punto_x_des - punto_x
+                #Puzblicamos el error
                 error_msg = Float32()
                 error_msg.data = error
                 self.pub_error.publish(error_msg)
-                tiempo_msg = Float32()
-                tiempo_msg.data = rospy.get_rostime().to_sec()
-                self.pub_tiempo.publish(tiempo_msg)
+                #Ponemos el punto medio del bounding rectangle
                 cv.circle(img_back,(punto_x,punto_y), 5, (0,0,255), -1)
-                #print(error)
+                #Obtenemos la velocidad angular del robot
                 w = 0.05*((self.wl-self.wr)/0.18)
-                cv.putText(img_back,str(dis_ec),(10,30), cv.FONT_HERSHEY_SIMPLEX, 0.5,(255,0,255),1,cv.LINE_AA)
+                #Mostramos la velocidadangular del robot
+                cv.putText(img_back,str(w),(10,30), cv.FONT_HERSHEY_SIMPLEX, 0.5,(255,0,255),1,cv.LINE_AA)
+                #Devolvemos la imagen resutlante a un nuevo topico
                 img_back = self.bridge.cv2_to_imgmsg(img_back)
                 img_back.encoding = "bgr8"
-                #print(img_back.encoding)
                 self.pub.publish(img_back)
             except:
+                #En caso de no recibir imagen imprimimos vacio
                 print("vacio")
+            #Aseguramos los Mensajes por segundo deseados
             self.rate.sleep()
 if __name__ == "__main__":
     img = getBlackLine()

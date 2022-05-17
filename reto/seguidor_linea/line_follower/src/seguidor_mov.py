@@ -55,7 +55,7 @@ class SeguidorMov():
                 boost = 1.2
             else:
                 boost = 1
-            self.robot_cmd.angular.z = PID
+            self.robot_cmd.angular.z = proporcional
             #Aplicamos la variables de control de velocidad lineal y el aumento de velocidad
             self.robot_cmd.linear.x = 0.125 * self.con_giro * boost
             #Publicamos la velocidad
