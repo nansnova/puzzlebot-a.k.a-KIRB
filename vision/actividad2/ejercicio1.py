@@ -1,5 +1,5 @@
 #Leonardo Gracida Munoz A01379812
-#Nacy Lesly Gutierrez
+#Nancy Lesly Garcia Jimenez A01378043
 import cv2 as cv
 import numpy as np
 import os
