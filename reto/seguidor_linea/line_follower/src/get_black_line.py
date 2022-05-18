@@ -233,6 +233,7 @@ class getBlackLine():
                 #Mostramos la velocidadangular del robot
                 cv.putText(img_back,str(w),(10,30), cv.FONT_HERSHEY_SIMPLEX, 0.5,(255,0,255),1,cv.LINE_AA)
                 #Devolvemos la imagen resutlante a un nuevo topico
+                img_back =cv.resize(img_back,(180,180),interpolation = cv.INTER_NEAREST)
                 img_back = self.bridge.cv2_to_imgmsg(img_back)
                 img_back.encoding = "bgr8"
                 self.pub.publish(img_back)
