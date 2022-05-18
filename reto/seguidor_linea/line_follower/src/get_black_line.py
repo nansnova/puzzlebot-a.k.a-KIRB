@@ -164,10 +164,10 @@ class getBlackLine():
                         giro.data = 1
                         self.pub_con_giro.publish(giro)
                         estado_giro = False
-                """En caso de que haya una curva muy cerrada, lo que hacemos es obetener la distancia menor del punto a girar
-                respeto al limite derecho o izquierdo, al tener esa distancia minima, si es menor a 80 y no estamos detectadno otra linea,
+                """En caso de que haya una curva muy cerrada, lo que hacemos es obtener la distancia menor del punto a girar
+                respeto al limite derecho o izquierdo, al tener esa distancia minima, si es menor a 80 y no estamos detectando otra linea,
                 vamos a parar y declara el giro hasta el limite de la imagen y vamos a parar hasta que la distancia entre el nuevo
-                punto detectado y el limite sea mayor a 20"""
+                punto detectado y el limite sea mayor a 20."""
                 #Obtenemos la distancia minima hacia el limite izquierdo o derecho
                 dis_lim = [dis_lim_izq,dis_lim_der]
                 if min(dis_lim) == dis_lim_der:
