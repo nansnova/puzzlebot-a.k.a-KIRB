@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding=utf-8
 #Leoanrdo Gracida Munoz
 #Nancy L. Garcia Jimenez
 
@@ -7,6 +8,7 @@ import rospy
 import cv2 as cv
 import numpy as np
 from sensor_msgs.msg import Image
+from std_msgs.msg import Float32
 from cv_bridge import CvBridge
 from geometry_msgs.msg import Twist
 
@@ -20,7 +22,8 @@ class Imagen():
         #Creamos el publicador al topico de la imagen resultante procesada
         self.pub = rospy.Publisher("/imagen_ejer1", Image, queue_size = 10)
         #Creamos el publicador al topico de comand velocity
-        self.pub_vel = rospy.Publisher("/cmd_vel", Twist, queue_size = 1)
+        #self.pub_vel = rospy.Publisher("/cmd_vel", Twist, queue_size = 1)
+        self.pub_sem = rospy.Publisher("/estado_sem", Float32 , queue_size = 1)
         #Iniciamos el mensaje de velocity
         self.vel = Twist()
         #Creamos la variable donde vamos a guardar la imagen obtenida de la camara
@@ -46,6 +49,8 @@ class Imagen():
     def main(self):
         #Declaramos el estado inicial para mostrarlo en consola
         estado = "detenido"
+        estado_sem = Float32()
+        estado_sem.data = 0
         while not rospy.is_shutdown():
             #rotar el frame si axis=1
             frame = np.flip(self.frame,axis=0)
@@ -58,10 +63,10 @@ class Imagen():
                 img_hsv = cv.cvtColor(frame,cv.COLOR_BGR2HSV)
                 #umbral de valores para el filtrado de cada color
                 #red
-                color_min_r=np.array([134,51,99])
-                color_max_r=np.array([219,230,200])
+                color_min_r=np.array([134,61,80])
+                color_max_r=np.array([219,255,200])
                 #green
-                color_min_g=np.array([48,36,89])
+                color_min_g=np.array([48,36,71])
                 color_max_g=np.array([93,254,239])
                 #yellow
                 color_min_y=np.array([21,28,137])
@@ -134,31 +139,37 @@ class Imagen():
                 este se va a mover a mitad de velocidad hasta que el amarillo sea
                 removido del frame, en caso de solo detectar verde se va a mover a velocidad normal y en caso de solo detectar amarillo
                 se va a mover a mitad de velocidad."""
-                if size_r > 20.0:
+		lim_tam_sem = 30.0
+                if size_r > lim_tam_sem:
+                    estado_sem.data = 0
                     estado = "detenido"
                     self.vel.linear.x = 0.0
                     #En la posicion en la que lo detecta, dibuja un circulo rojo del tamaño detectado
                     cv.circle(frame,(int(x_r),int(y_r)),int(size_r/2),(0,0,255),2)
                     #Etiqueta el circulo que detecta con la leyenda "detenido"
                     cv.putText(frame, 'detenido', (int(10),int(50)), cv.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 1, cv.LINE_AA)
-                elif size_y > 20.0:
+                elif size_y > lim_tam_sem:
+                    estado_sem.data = 0.5
                     estado = "mitad vel"
                     self.vel.linear.x = 0.05
                     #En la posicion en la que lo detecta, dibuja un circulo amarillo del tamaño detectado
                     cv.circle(frame,(int(x_y),int(y_y)),int(size_y/2),(0,255,255),2)
                     #Etiqueta el circulo que detecta con la leyenda "mitad vel"
                     cv.putText(frame, 'mitad vel', (int(10),int(50)), cv.FONT_HERSHEY_SIMPLEX, 1, (0,255,255), 1, cv.LINE_AA)
-                elif size_g > 20.0:
+                elif size_g > lim_tam_sem:
+                    estado_sem.data = 1
                     estado = "avanza"
                     self.vel.linear.x = 0.1
                     #En la posicion en la que lo detecta, dibuja un circulo verde del tamaño detectado
                     cv.circle(frame,(int(x_g),int(y_g)),int(size_g/2),(0,255,0),2)
                     #Etiqueta el circulo que detecta con la leyenda "avanza"
                     cv.putText(frame, 'avanza', (int(10),int(50)), cv.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 1, cv.LINE_AA)
+                self.pub_sem.publish(estado_sem)
                 #print("modo: ",estado)
                 #Publica en el topico /cmd_vel la velocidad
-                self.pub_vel.publish(self.vel)
+                #self.pub_vel.publish(self.vel)
                 #Establece el tamano de la ventana en 220x180
+                dilation = cv.cvtColor(dilation_r,cv.COLOR_GRAY2BGR)
                 smaller =cv.resize(frame,(220,180),interpolation = cv.INTER_NEAREST)
                 #El tamano de la ventana anterior sera la usada como puente entre ros y cv2
                 img_back = self.bridge.cv2_to_imgmsg(smaller)
@@ -176,11 +187,11 @@ class Imagen():
 
         # Filtro por Area.
         params.filterByArea = True
-        params.minArea = 300
+        params.minArea = 100
 
         # Filtro por Circularidad
         params.filterByCircularity = True
-        params.minCircularity = 0.7
+        params.minCircularity = 0.8
 
         # Filtro por Convexividad
         params.filterByConvexity = False
