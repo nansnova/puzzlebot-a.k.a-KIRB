@@ -7,8 +7,8 @@ from cv_bridge import CvBridge
 class Imagen():
     def __init__(self):
         rospy.init_node("image_pub")
-        rospy.Subscriber("/camera/image_raw",Image,self.img_callback)
-        self.pub = rospy.Publisher("/video_source/raw", Image, queue_size = 10)
+        rospy.Subscriber("/video_source/raw",Image,self.img_callback)
+        self.pub = rospy.Publisher("/camera/image_raw", Image, queue_size = 10)
         self.bridge = CvBridge()
         self.frame = np.array([[]],dtype = "uint8")
         self.rate = rospy.Rate(60)
@@ -19,7 +19,6 @@ class Imagen():
         while not rospy.is_shutdown():
             try:
                 frame = self.frame
-                frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
                 frame = cv.resize(frame,(320,280),interpolation = cv.INTER_NEAREST)
                 img_back = self.bridge.cv2_to_imgmsg(frame)
                 img_back.encoding = "bgr8"

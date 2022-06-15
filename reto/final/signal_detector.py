@@ -21,7 +21,7 @@ class Imagen():
         bk.clear_session()
         set_visible_devices([],'GPU')
         self.frame = np.array([[]],dtype = "uint8")
-        self.script_path = os.path.join(self.rp.get_path("line_follower"), "src", "modelos","signals_5_ligero")
+        self.script_path = os.path.join(self.rp.get_path("pista_manchester"), "src", "modelos","signals_5_ligero")
         self.model = load_model(self.script_path)
         self.classDictionary = {0: "stop", 1: "fin_prob", 2: "derecha", 3: "izquierda", 4: "siga", 5: "rotonda"}
         self.imageSize = (32, 32)
@@ -40,7 +40,7 @@ class Imagen():
         return img
 
     def main(self):
-        imagen_inicial= os.path.join(self.rp.get_path("line_follower"), "src", "modelos","stop.png")
+        imagen_inicial= os.path.join(self.rp.get_path("pista_manchester"), "src", "modelos","stop.png")
         imagen_inicial = cv.imread(imagen_inicial)
         imagen_inicial = self.preprocess(imagen_inicial)
         pred = self.model.predict(imagen_inicial)
@@ -56,13 +56,15 @@ class Imagen():
                 img_hsv = cv.cvtColor(frame,cv.COLOR_BGR2HSV)
                 #umbral de valores para el filtrado de cada color
                 #red
-                color_min_b=np.array([43,164,83])
+                color_min_b=np.array([43,150,83])
                 color_max_b=np.array([176,255,182])
 
                 #color_min_b=np.array([47,73,73])
                 #color_max_b=np.array([93,255,239])
-                color_min_r=np.array([0,121,218])
-                color_max_r=np.array([34,167,255])
+                color_min_r=np.array([140,61,135]) #tarde
+                color_max_r=np.array([247,213,217])#tarde
+                #color_min_r=np.array([0,90,106])
+                #color_max_r=np.array([33,176,255])
 
                 #Creamos las mascaras filtrando los colores
                 mask_b=cv.inRange(img_hsv,color_min_b,color_max_b)
@@ -80,57 +82,71 @@ class Imagen():
                 #rojo
                 gray_r = cv.cvtColor(frame_r,cv.COLOR_BGR2GRAY)
                 _,thresh_r = cv.threshold(gray_r,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU)
+                thresh_r = cv.dilate(thresh_r,kernel,iterations=7)
                 contours_r, hierarchy_r = cv.findContours(thresh_r, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
                 #azul
                 #print(len(contours))
-                for cnt in contours:
-                    area = cv.contourArea(cnt)
-                    if area > 1000:
-                        #cv.drawContours(frame, [cnt], 0, (0,255,0), 3
-                        x,y,w,h = cv.boundingRect(cnt)
-                        img = frame[y:y+h,x:x+w]
-                        img = self.preprocess(img)
-                        predictions = self.model.predict(img)
-                        #Obtenemos la maxima probabilidad
-                        classIndex = predictions.argmax(axis=1)[0]
-                        #Obtenemos el label de la prediccion
-                        label = self.classDictionary[classIndex]
-                        prob = predictions[0][classIndex]
-                        if classIndex == 0:
-                            classIndex = 6
-                        if prob > 0.9:
-                            msg.data = classIndex
-                            self.pub_class.publish(classIndex)
+                if len(contours) > 0:
+                    for cnt in contours:
+                        area = cv.contourArea(cnt)
+                        if (area > 1000)and(area < 3000):
+                            #cv.drawContours(frame, [cnt], 0, (0,255,0), 3
+                            x,y,w,h = cv.boundingRect(cnt)
+                            prop = w/h
+                            img = frame[y:y+h,x:x+w]
+                            img = self.preprocess(img)
+                            predictions = self.model.predict(img)
+                            #Obtenemos la maxima probabilidad
+                            classIndex = predictions.argmax(axis=1)[0]
+                            #Obtenemos el label de la prediccion
+                            label = self.classDictionary[classIndex]
+                            prob = predictions[0][classIndex]
+                            if classIndex == 0:
+                                classIndex = 6
+                            if (prob > 0.9):
+                                msg.data = classIndex
+                                self.pub_class.publish(msg)
+                            else:
+                                msg.data = 0
+                                self.pub_class.publish(msg)
                         else:
                             msg.data = 0
-                            self.pub_class.publish(classIndex)
+                            self.pub_class.publish(msg)
                 #rojo
                 #print(len(contours))
-                for cnt in contours_r:
-                    area = cv.contourArea(cnt)
-                    if area > 1000:
-                        #cv.drawContours(frame, [cnt], 0, (0,255,0), 3
-                        x,y,w,h = cv.boundingRect(cnt)
-                        img = frame[y:y+h,x:x+w]
-                        img = self.preprocess(img)
-                        predictions = self.model.predict(img)
-                        #Obtenemos la maxima probabilidad
-                        classIndex = predictions.argmax(axis=1)[0]
-                        #Obtenemos el label de la prediccion
-                        label = self.classDictionary[classIndex]
-                        prob = predictions[0][classIndex]
-                        if classIndex == 0:
-                            classIndex = 6
-                        if prob > 0.9:
-                            msg.data = classIndex
-                            self.pub_class.publish(classIndex)
+
+                if len(contours_r) > 0:
+                    #print(len(contours_r))
+                    for cnt in contours_r:
+                        area = cv.contourArea(cnt)
+                        if (area > 1000):
+                            #cv.drawContours(frame, [cnt], 0, (0,255,0), 3
+                            x,y,w,h = cv.boundingRect(cnt)
+                            img = frame[y:y+h,x:x+w]
+                            img = self.preprocess(img)
+                            predictions = self.model.predict(img)
+                            #Obtenemos la maxima probabilidad
+                            classIndex = predictions.argmax(axis=1)[0]
+                            #Obtenemos el label de la prediccion
+                            label = self.classDictionary[classIndex]
+                            #print(label)
+                            prob = predictions[0][classIndex]
+                            if classIndex == 0:
+                                classIndex = 6
+                            if (prob > 0.9):
+                                msg.data = classIndex
+                                self.pub_class.publish(msg)
+                            else:
+                                msg.data = 0
+                                self.pub_class.publish(mag)
                         else:
                             msg.data = 0
-                            self.pub_class.publish(classIndex)
+                            self.pub_class.publish(mag)
+
             except:
                 msg.data = 0
-                self.pub_class.publish(classIndex)
-                print("vacio")
+                self.pub_class.publish(msg)
+                #print("vacio")
 
             self.rate.sleep()
 
