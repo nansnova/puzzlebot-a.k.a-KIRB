@@ -19,9 +19,9 @@ class Imagen():
         rospy.init_node("get_image")
         #Nos sucribimos al topico de la imagen dada por la camara
         rospy.Subscriber("/video_source/raw",Image,self.img_callback)
-        #Creamos el publicador al topico de la imagen resultante procesada
-        #Creamos el publicador al topico de comand velocity
+        #Creamos el publicador al topico del estado del semaforo
         self.pub_vel = rospy.Publisher("/estado_sem", Float32, queue_size = 1)
+        #Creamos el publicador al topico de la imagen resultante procesada
         self.pub_img = rospy.Publisher("/img_sem", Image, queue_size = 1)
         #Iniciamos el mensaje de velocity
         self.vel = Twist()
@@ -54,18 +54,16 @@ class Imagen():
                 #El frame obtenido lo pasamos a HSV
                 img_hsv = cv.cvtColor(frame,cv.COLOR_BGR2HSV)
                 #umbral de valores para el filtrado de cada color
+
                 #red
                 #color_min_r=np.array([0,60,70])
                 #color_max_r=np.array([70,255,255])
                 color_min_r=np.array([0,70,200])
                 color_max_r=np.array([30,116,255])
-
                 #green
                 color_min_g=np.array([47,88,80])
                 color_max_g=np.array([90,164,255])
-                #yellow
-                color_min_y=np.array([20,50,50])
-                color_max_y=np.array([37,255,255])
+
                 #Creamos las mascaras filtrando los colores
                 mask_g=cv.inRange(img_hsv,color_min_g,color_max_g)
                 mask_r=cv.inRange(img_hsv,color_min_r,color_max_r)
@@ -76,10 +74,8 @@ class Imagen():
                 frame_g[mask_g<255]=(0,0,0)
                 #red filter
                 frame_r[mask_r<255]=(0,0,0)
-                #yellow filter
-                frame_y[mask_y<255]=(0,0,0)
 
-                #Por cada color vamos a hacer el mismo procesamiento.
+                """Por cada color vamos a hacer el mismo procesamiento."""
                 #green
                 #Lo pasamos a escalas de grises la imagen filtrada solo del color verde del semaforo
                 gray_g = cv.cvtColor(frame_g,cv.COLOR_BGR2GRAY)
@@ -95,7 +91,6 @@ class Imagen():
                 dilation_g_BGR = cv.cvtColor(dilation_g,cv.COLOR_GRAY2BGR)
                 #Usamos el Blob Detector para que nos devuelva el tamano y localizacion del circulo del semaforo
                 size_g,pos_g = self.filter_circle(dilation_g)
-                #print(size_g,pos_g)
                 #Obtenemos la posicion
                 x_g,y_g = pos_g
 
@@ -116,59 +111,36 @@ class Imagen():
                 print(size_r,pos_r)
                 #Obtencion de la posicion
                 x_r,y_r = pos_r
-                #print(x3,y3,round(size3))
 
-                #yellow
-                #Lo pasamos a escalas de grises la imagen filtrada solo del color amarillo del semaforo
-                gray_y = cv.cvtColor(frame_y,cv.COLOR_BGR2GRAY)
-                gray_y = cv.GaussianBlur(gray_y,(5,5),0)
-                _, binary_y = cv.threshold(gray_y,10,255,cv.THRESH_BINARY)
-                erosion_y = cv.erode(binary_y,kernel,iterations = 4)
-                dilation_y = cv.dilate(erosion_y,kernel,iterations = 2)
-                size_y,pos_y = self.filter_circle(dilation_y)
-                x_y,y_y = pos_y
-                #print(x4,y4,round(size4))
-                #print("verde: ",size_g,", rojo: ",size_r,", amarillo: ",size_y)
-
-                """Si detecta un circulo de alguno de los colores correspondientes con un area mayor a veinte el robot
-                se va a parar si es rojo, correr a mitad velocidad si es amarillo y avanzar si es verde.
-                Las sigueintes condicionales permiten tener una jerarquia:
-                Si el robot detecta rojo y alguno de los otros dos colores circulares son detectados,
-                este se va a parar hasta que el rojo sea removido del frame, si detecta amarillo y verde,
-                este se va a mover a mitad de velocidad hasta que el amarillo sea
-                removido del frame, en caso de solo detectar verde se va a mover a velocidad normal y en caso de solo detectar amarillo
-                se va a mover a mitad de velocidad."""
+                #si el circulo es rojo y mayor a esa area cambia el estado a "detenido" y publica 0
                 if size_r > 14:
                     estado = "detenido"
                     estado_vel.data = 0
-                    #self.vel.linear.x = 0.0
-                    #En la posicion en la que lo detecta, dibuja un circulo rojo del tamaño detectado
-                    #cv.circle(frame,(int(x_r),int(y_r)),int(size_r/2),(0,0,255),2)
-                    #Etiqueta el circulo que detecta con la leyenda "detenido"
-                    #cv.putText(frame, 'detenido', (int(10),int(50)), cv.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 1, cv.LINE_AA)
+
+                #si el circulo es verde y mayor a esa area cambia el estado a "avanza" y publica 1
                 elif size_g > 8:
                     estado = "avanza"
                     estado_vel.data = 1
-                    #self.vel.linear.x = 0.1
-                    #En la posicion en la que lo detecta, dibuja un circulo verde del tamaño detectado
-                    #cv.circle(frame,(int(x_g),int(y_g)),int(size_g/2),(0,255,0),2)
-                    #Etiqueta el circulo que detecta con la leyenda "avanza"
-                    #cv.putText(frame, 'avanza', (int(10),int(50)), cv.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 1, cv.LINE_AA)
+
+                #para la terminal
                 print("modo: ",estado)
-                #Publica en el topico /cmd_vel la velocidad
-                #self.pub_vel.publish(self.vel)
+
                 #Establece el tamano de la ventana en 220x180
                 smaller =cv.resize(dilation_r_BGR,(220,180),interpolation = cv.INTER_NEAREST)
+
                 #El tamano de la ventana anterior sera la usada como puente entre ros y cv2
                 img_back = self.bridge.cv2_to_imgmsg(smaller)
                 img_back.encoding = "bgr8"
-                #print(img_back.encoding)
+
+                #Publica en el topico /cmd_vel la velocidad
                 self.pub_img.publish(img_back)
+
+                #Publica en el topico /cmd_vel la velocidad
                 self.pub_vel.publish(estado_vel)
-                #print(estado)
+
             except:
                 self.pub_vel.publish(estado_vel)
-                #print("vacio")
+
             self.rate.sleep()
 
     def filter_circle(self,bin_img):

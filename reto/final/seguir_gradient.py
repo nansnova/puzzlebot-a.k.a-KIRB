@@ -14,10 +14,10 @@ class getBlackLine():
     def __init__(self):
         #Iniciamos el nodo
         rospy.init_node("get_black_line")
-        #Creamos los subscribers necesarios
+        #Creamos los subscribers para leer la camara y el estado del semaforo
         rospy.Subscriber("/video_source/raw",Image,self.img_callback)
         rospy.Subscriber("/class_det",Float32,self.class_det_callback)
-        #Creamos los Publishers
+        #Creamos los Publishers que publicaran
         self.pub_error = rospy.Publisher("/err_line", Float32, queue_size = 10)
         self.pub_giro = rospy.Publisher("/edo_giro", Float32, queue_size = 1)
         self.classDictionary = {6: "stop", 1: "fin_prob", 2: "derecha", 3: "izquierda", 4: "siga", 5: "rotonda"}
@@ -50,30 +50,41 @@ class getBlackLine():
                 gray_blur = cv.GaussianBlur(gray,(5,5),10)
                 #Kernel para hacer operaciones morfologicas
                 kernel = np.ones((3,3),np.uint8)
+                #Erosion de la imagen
                 erosion = cv.erode(gray_blur,kernel,iterations = 3)
+                #Dilatacion de la imagen
                 dilation = cv.dilate(erosion,kernel,iterations = 3)
+                #Suma verticar del arreglo de la imagen
                 vert_sum = dilation.sum(axis=0)
+                #Encontrar el valor minimo de los valores, ese es el punto que sigue
                 min_number = np.min(vert_sum)
+                #calcul del primer y segundo gradiente
                 gradiante = np.gradient(vert_sum.astype('float32'))
                 gradiante2 = np.gradient(vert_sum.astype('float32'),edge_order=2)
+                #threshold
                 gradiante_pos = (gradiante > 300) * gradiante
                 gradiante_neg = (gradiante < -200) * gradiante
+                #multiplicamos por el segundo gradiente para encontrar los bordes
                 multi_pos = gradiante_pos * gradiante2
                 multi_neg = gradiante_neg * gradiante2
+                #
                 multi_pos_left = np.roll(multi_pos,-1)
                 multi_neg_left = np.roll(multi_neg,-1)
+                #borde derecho
                 resultante_der = []
                 for i,j in zip(multi_pos,multi_pos_left):
                     if j > i:
                         resultante_der.append(j)
+                der = np.where(multi_pos_left > multi_pos)
+                #borde izquierdo
                 resultante_izq = []
                 for i,j in zip(multi_neg,multi_neg_left):
                     if j > i:
                         resultante_izq.append(j)
                     else:
                         resultante_izq.append(0)
-                der = np.where(multi_pos_left > multi_pos)
                 izq = np.where(multi_neg_left > multi_neg)
+                #
                 if (len(izq[0]) != 0)and(len(der[0]) != 0):
                     izq_res = np.absolute(izq[0]-160)
                     index = np.where(izq_res == np.min(izq_res))[0][0]
