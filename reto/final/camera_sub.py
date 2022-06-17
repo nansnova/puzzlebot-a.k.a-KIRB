@@ -113,7 +113,7 @@ class Imagen():
                 x_r,y_r = pos_r
 
                 #si el circulo es rojo y mayor a esa area cambia el estado a "detenido" y publica 0
-                if size_r > 14:
+                if size_r > 18:
                     estado = "detenido"
                     estado_vel.data = 0
 

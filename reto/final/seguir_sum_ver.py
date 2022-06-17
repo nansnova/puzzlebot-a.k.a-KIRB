@@ -133,7 +133,7 @@ class getBlackLine():
                     if senal_guardada == 4:
                         error=0
                     if senal_guardada == 2:
-                        pub_giro.data = 1
+                        pub_giro.data = 2
                         self.pub_giro.publish(pub_giro)
                     else:
                         pub_giro.data = 0
