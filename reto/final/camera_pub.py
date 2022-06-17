@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+#Autores:
+#Leonardo Gracida Munoz A01379812
+#Nancy L. García Jiménez A01378043
+
+#Importamos las librerias deseadas
 import rospy
 import cv2 as cv
 import numpy as np

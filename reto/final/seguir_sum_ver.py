@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#Autores: Leonardo Gracida Munoz A0137, Nancy L.Garcia Jimenez A01378043
+#Autores: Leonardo Gracida Munoz A01379812, Nancy L.Garcia Jimenez A01378043
 #Importamos las librerias de rospy, numpy y cv2
 import rospy
 import cv2 as cv
