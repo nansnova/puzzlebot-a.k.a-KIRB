@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#Autores: Leonardo Gracida Munoz A0137, Nancy L.Garcia Jimenez A01378043
+#Autores: Leonardo Gracida Munoz A01379812, Nancy L.Garcia Jimenez A01378043
 #Importamos las librerias de rospy, numpy y cv2
 import rospy
 import cv2 as cv
@@ -58,7 +58,7 @@ class getBlackLine():
                 vert_sum = dilation.sum(axis=0)
                 #Encontrar el valor minimo de los valores, ese es el punto que sigue
                 min_number = np.min(vert_sum)
-                #calcul del primer y segundo gradiente
+                #calculos del primer y segundo gradiente
                 gradiante = np.gradient(vert_sum.astype('float32'))
                 gradiante2 = np.gradient(vert_sum.astype('float32'),edge_order=2)
                 #threshold
@@ -67,7 +67,6 @@ class getBlackLine():
                 #multiplicamos por el segundo gradiente para encontrar los bordes
                 multi_pos = gradiante_pos * gradiante2
                 multi_neg = gradiante_neg * gradiante2
-                #
                 multi_pos_left = np.roll(multi_pos,-1)
                 multi_neg_left = np.roll(multi_neg,-1)
                 #borde derecho
@@ -84,7 +83,7 @@ class getBlackLine():
                     else:
                         resultante_izq.append(0)
                 izq = np.where(multi_neg_left > multi_neg)
-                #
+                #Guarda la info de las posiciones de los bordes en las variables izr y der
                 if (len(izq[0]) != 0)and(len(der[0]) != 0):
                     izq_res = np.absolute(izq[0]-160)
                     index = np.where(izq_res == np.min(izq_res))[0][0]
@@ -95,18 +94,20 @@ class getBlackLine():
                 else:
                     izq = 0
                     der = 0
-                #print("izquierda: ",izq)
-                #print("derecha: ",der)
+
+                #con la resta conocemos el ancho de la linea
                 ancho = abs(der-izq)
                 print(ancho)
-                #print("senal",self.class_det)
+
+                #Actualiza los estados, de manera que se puede identificar si hay linea o no
                 if (self.class_det == 0):
                     pub_giro.data = 0
                     self.pub_giro.publish(pub_giro)
+                #Filtro para que no detecte las señales que no necesitamos
                 if (self.class_det != 0)and(estado_switch == False)and(self.class_det != 5)and(self.class_det != 1):
-                    #print(self.classDictionary[self.class_det])
                     estado_switch = True
                     senal_guardada = self.class_det
+                #Si no detecta linea, puede hacer la deteccion de señales
                 if estado_switch == True:
                     print(self.classDictionary[senal_guardada])
 
@@ -124,8 +125,11 @@ class getBlackLine():
                 #print(abs(error),err_x)
                 if (abs(error)>80)and(estado_switch==True):
                     estado_giro = True
+
+                #Si no detetcta senal publica una accion para la senal identificada
                 if estado_giro == True:
                     print(abs(error),err_x)
+                    #giro
                     if senal_guardada == 4:
                         error=0
                     if senal_guardada == 2:
@@ -134,18 +138,21 @@ class getBlackLine():
                     else:
                         pub_giro.data = 0
                         self.pub_giro.publish(pub_giro)
+                    #cambio de estado
                     if (err_x>120)and(err_x<200)and(senal_guardada == 4):
                         estado_giro = False
                         estado_switch = False
+                    #derecha
                     if (ancho > 30)and(senal_guardada == 2):
                         estado_giro = False
                         estado_switch = False
-
+                    #stop
                     if senal_guardada == 6:
+                        #publica el code number 3
                         pub_giro.data = 3
                         self.pub_giro.publish(pub_giro)
 
-                #publicarlo
+                #publica el error al control de movimiento
                 self.pub_error.publish(error)
                 senal_anterior = senal_guardada
             except:

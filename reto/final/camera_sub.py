@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding=utf-8
-#Leoanrdo Gracida Munoz
-#Nancy L. Garcia Jimenez
+#Leoanrdo Gracida Munoz A01379812
+#Nancy L. Garcia Jimenez A01378043
 
 #Importamos las librerias de numpy cv2 los mensajes y el bridge de ROS msg a cv2
 import rospy
