@@ -1,7 +1,7 @@
 # coding=utf-8
 
 #Leonardo Gracida Munoz A01379812
-#Nacy Lesly Gutierrez
+#Nancy Lesly Garcia Jimenez A01378043
 import cv2 #opencv
 import numpy as np
 #Seleccionamos la camara a usar conectada por usb
